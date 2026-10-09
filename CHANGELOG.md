@@ -1,5 +1,11 @@
 # Historial de versiones
 
+## v0.2.1 — 2026-10-09
+- Valores iniciales rápidos en el código: CoT off, NAR 4, CFG 1.00.
+- Los demás controles avanzados se mantienen y EOS natural permanece activo.
+- Nueve pruebas completadas, incluida comprobación de defaults Gradio.
+- Las instancias originales 7875, 7876 y 7877 no fueron reiniciadas.
+
 ## v0.2.0 — 2026-10-08
 - Retirado el límite artificial de 384 tokens (~15 segundos) en generación ordinaria.
 - El motor espera su token de fin (EOS) respetando el techo interno de seguridad de 9000 tokens (~6 min).
