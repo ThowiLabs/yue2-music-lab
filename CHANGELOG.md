@@ -1,5 +1,10 @@
 # Historial de versiones
 
+## v0.3.3 — 2026-10-09
+- Historial Git reescrito antes del primer push: los siete commits y cinco etiquetas usan el autor y confirmador `thowilabs`, con correo `noreply` vinculado a la cuenta GitHub.
+- Cuaderno Kaggle actualizado y confirmado en Git; muestra la revisión Git clonada y comprueba el acelerador antes de instalar modelos.
+- Paquete Git portable verificado mediante extracción, `git log`, etiquetas y comprobación de ausencia de archivos privados.
+
 ## v0.3.2 — 2026-10-09
 - README.md reescrito como documentación final de repositorio público: arquitectura, instalación, seguridad, limitaciones y comandos de publicación para `thowilabs/yue2-music-lab`.
 - Añadido cuaderno Kaggle para clonar automáticamente el repositorio, preparar CUDA/dependencias/modelos y arrancar Gradio con login configurable.
