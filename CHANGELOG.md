@@ -1,5 +1,11 @@
 # Historial de versiones
 
+## v0.3.4 — 2026-10-09
+- Notebook Kaggle: el servidor Gradio y la API CUDA mantienen ocupada la última celda mientras se ejecutan, con los mensajes del servidor visibles en tiempo real.
+- Interrumpir ejecución en Kaggle finaliza el grupo de procesos de esta instancia, sin mantener servicios en segundo plano.
+- Eliminadas las celdas redundantes para leer logs, comprobar enlace y detener servicios; el enlace se imprime en la propia celda de arranque.
+- Prueba controlada de interrupción con proceso simulado y validación sintáctica del cuaderno.
+
 ## v0.3.3 — 2026-10-09
 - Historial Git reescrito antes del primer push: los siete commits y cinco etiquetas usan el autor y confirmador `thowilabs`, con correo `noreply` vinculado a la cuenta GitHub.
 - Cuaderno Kaggle actualizado y confirmado en Git; muestra la revisión Git clonada y comprueba el acelerador antes de instalar modelos.

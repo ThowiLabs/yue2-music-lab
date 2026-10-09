@@ -146,7 +146,9 @@ El proyecto incluye [**`kaggle/YuE2_Music_Lab_ThowiLabs.ipynb`**](kaggle/YuE2_Mu
 2. Ejecuta `git clone https://github.com/thowilabs/yue2-music-lab.git` (o actualiza un clon existente sin sobreescribirlo).
 3. Instala las dependencias Python y FFmpeg si falta.
 4. Descarga y verifica el motor CUDA y los pesos YuE2 Q8.
-5. Arranca el panel Gradio, ofrece el enlace temporal y permite controlar el modo de autenticación.
+5. Arranca el panel Gradio en la **última celda, que permanece ejecutándose en primer plano** y muestra directamente los mensajes del servidor y el enlace temporal.
+
+Para cerrar el estudio desde Kaggle, pulsa **Interrumpir ejecución (■)** sobre esa celda; se detendrán el panel y los subprocesos iniciados por ella. No se utiliza una celda de consulta de logs ni un proceso independiente que quede corriendo en segundo plano.
 
 **Antes de ejecutarlo:** publica el repositorio en la ruta indicada, habilita **GPU** e **Internet** en *Kaggle Notebook Settings* y acepta el espacio necesario para los pesos. El notebook tiene login habilitado por defecto por seguridad.
 
