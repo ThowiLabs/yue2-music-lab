@@ -23,6 +23,14 @@ class FLStudioTests(unittest.TestCase):
         cls.tools = load("flstudio_tools", ROOT / "flstudio_tools.py")
         cls.lab = load("studio_fl", ROOT / "studio_fl.py")
 
+    def test_temporary_login_override(self):
+        from unittest.mock import patch
+        with patch.dict("os.environ", {"GRADIO_DISABLE_AUTH": "1"}):
+            self.assertIsNone(self.lab.gradio_auth())
+        with patch.dict("os.environ", {"GRADIO_DISABLE_AUTH": "0"}), \
+             patch.object(self.lab.legacy, "credentials", return_value=("admin", "secret")):
+            self.assertEqual(self.lab.gradio_auth(), ("admin", "secret"))
+
     def test_abc_pitch_and_meter(self):
         self.assertEqual(self.tools.abc_note(60), "C")
         self.assertEqual(self.tools.abc_note(72), "c")

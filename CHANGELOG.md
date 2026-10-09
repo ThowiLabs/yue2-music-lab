@@ -1,5 +1,10 @@
 # Historial de versiones
 
+## v0.3.1 — 2026-10-09
+- Login Gradio deshabilitable temporalmente con `GRADIO_DISABLE_AUTH=1` solo para la sesión de pruebas.
+- Inicio predeterminado mantiene autenticación; `.gradio-auth` permanece intacto.
+- Se añaden pruebas de activación/desactivación de autenticación y documentación de seguridad.
+
 ## v0.3.0 — 2026-10-09
 - Estudio unificado con cuatro modos: crear, cover/remix de FL Studio, extender WAV externo y continuar tokens semánticos YuE2.
 - Covers desde un único WAV/MP3 + letra: extracción melódica automática; MIDI/ABC y análisis previo opcionales.

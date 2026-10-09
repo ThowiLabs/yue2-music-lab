@@ -27,6 +27,10 @@ El acceso remoto conserva autenticación Gradio con credenciales del proyecto or
 
 **Dependencias de procesamiento local:** `ffmpeg`, `ffprobe`, NumPy, scipy, librosa, soundfile y music21 (ya disponibles en la instancia probada). No es imprescindible instalar SheetSage2 para estos flujos experimentales.
 
+## Login temporal en pruebas
+
+El panel requiere autenticación **de forma predeterminada**. Para deshabilitarla únicamente durante una sesión de prueba, iniciar Gradio con `GRADIO_DISABLE_AUTH=1 python -u studio_fl.py` (puerto 7875 o el configurado con `GRADIO_SERVER_PORT`). Los archivos `.gradio-auth` y los modelos se conservan sin cambios. Para restaurar la autenticación, reiniciar sin esa variable (o con `GRADIO_DISABLE_AUTH=0`). **Advertencia:** con `GRADIO_SHARE=1`, cualquier persona que obtenga el enlace temporal podría subir audio, generar música y acceder a los resultados expuestos por el panel; no dejarlo público indefinidamente.
+
 ## Requisitos
 
 - Kaggle Linux x86_64 con GPU Tesla T4, CUDA 12.8 y bibliotecas del driver NVIDIA accesibles en `/usr/local/nvidia/lib64`.

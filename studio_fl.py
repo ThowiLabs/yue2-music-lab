@@ -389,13 +389,22 @@ with gr.Blocks(title="YuE2 · FL Studio Music Lab") as demo:
     gr.Button("Actualizar estado del motor", size="sm").click(legacy.status, outputs=state)
 
 
+def gradio_auth():
+    """Sin login exclusivamente si se solicita GRADIO_DISABLE_AUTH=1."""
+    if os.getenv("GRADIO_DISABLE_AUTH", "0") == "1":
+        return None
+    return legacy.credentials()
+
+
 if __name__ == "__main__":
     OUTPUTS.mkdir(exist_ok=True)
-    username, password = legacy.credentials()
+    login = gradio_auth()
+    if login is None:
+        print("AVISO: Gradio sin login; cualquier persona con el enlace puede acceder.", flush=True)
     demo.queue(max_size=3).launch(
         server_name=os.getenv("GRADIO_SERVER_NAME", "0.0.0.0"),
         server_port=int(os.getenv("GRADIO_SERVER_PORT", "7875")),
-        auth=(username, password),
+        auth=login,
         share=os.getenv("GRADIO_SHARE", "1") == "1",
         allowed_paths=[ALLOWED], show_error=False,
         max_file_size="150mb",

@@ -6,7 +6,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "outputs" / "yue2-q8-gradio-v0.3.0.zip"
+OUT = ROOT / "outputs" / "yue2-q8-gradio-v0.3.1.zip"
 
 
 def paths() -> list[Path]:
