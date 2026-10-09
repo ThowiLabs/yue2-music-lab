@@ -6,7 +6,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "outputs" / "yue2-q8-gradio-v0.3.1.zip"
+OUT = ROOT / "outputs" / "yue2-music-lab-v0.3.2.zip"
 
 
 def paths() -> list[Path]:
@@ -25,6 +25,10 @@ def main() -> None:
     OUT.parent.mkdir(exist_ok=True)
     items = paths()
     with zipfile.ZipFile(OUT, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=8) as archive:
+        # Tras git gc, refs/ suele quedar vacío y las referencias se guardan
+        # en packed-refs. Git exige que .git/refs/ exista al extraer el ZIP.
+        for folder in (".git/", ".git/refs/", ".git/refs/heads/", ".git/refs/tags/"):
+            archive.writestr(folder, "")
         for item in items:
             archive.write(item, item.relative_to(ROOT))
     with zipfile.ZipFile(OUT) as archive:

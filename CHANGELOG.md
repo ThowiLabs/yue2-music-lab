@@ -1,5 +1,10 @@
 # Historial de versiones
 
+## v0.3.2 — 2026-10-09
+- README.md reescrito como documentación final de repositorio público: arquitectura, instalación, seguridad, limitaciones y comandos de publicación para `thowilabs/yue2-music-lab`.
+- Añadido cuaderno Kaggle para clonar automáticamente el repositorio, preparar CUDA/dependencias/modelos y arrancar Gradio con login configurable.
+- ZIP de entrega incluye Git, historial, tags, notebook y código, sin credenciales, audios ni pesos GGUF.
+
 ## v0.3.1 — 2026-10-09
 - Login Gradio deshabilitable temporalmente con `GRADIO_DISABLE_AUTH=1` solo para la sesión de pruebas.
 - Inicio predeterminado mantiene autenticación; `.gradio-auth` permanece intacto.
