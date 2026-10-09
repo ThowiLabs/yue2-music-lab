@@ -43,7 +43,10 @@ def missing_components() -> list[str]:
 def status() -> str:
     missing = missing_components()
     try:
-        ctypes.CDLL("libcuda.so.1")
+        try:
+            ctypes.CDLL("libcuda.so.1")
+        except OSError:
+            ctypes.CDLL("/usr/local/nvidia/lib64/libcuda.so.1")
         cuda = "disponible"
     except OSError:
         cuda = "no disponible"

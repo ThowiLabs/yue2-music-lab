@@ -1,5 +1,13 @@
 # Historial de versiones
 
+## v0.3.0 — 2026-10-09
+- Estudio unificado con cuatro modos: crear, cover/remix de FL Studio, extender WAV externo y continuar tokens semánticos YuE2.
+- Covers desde un único WAV/MP3 + letra: extracción melódica automática; MIDI/ABC y análisis previo opcionales.
+- Introducido análisis aproximado de tonalidad/tempo/melodía con librosa, MIDI con music21, ensamblado WAV con FFmpeg y crossfade.
+- Exportación de tokens semánticos para futuras extensiones; backend YuE2 conserva final natural EOS para creación ordinaria.
+- Procesos Gradio antiguos cerrados y una sola instancia publicada en 7875, API en 7876.
+- Pruebas automatizadas de generación, carga de WAV, MIDI, ABC, cover sin partitura y tokens. Modelo y archivos originales conservados.
+
 ## v0.2.1 — 2026-10-09
 - Valores iniciales rápidos en el código: CoT off, NAR 4, CFG 1.00.
 - Los demás controles avanzados se mantienen y EOS natural permanece activo.

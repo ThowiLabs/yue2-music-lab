@@ -91,7 +91,7 @@ def run() -> int:
         else:
             raise RuntimeError("No respondió el motor CUDA: revisa logs/backend.log")
     try:
-        return subprocess.call([sys.executable, "-u", str(ROOT / "app.py")], cwd=ROOT, env=env)
+        return subprocess.call([sys.executable, "-u", str(ROOT / "studio_fl.py")], cwd=ROOT, env=env)
     finally:
         if child is not None and child.poll() is None:
             child.terminate()
