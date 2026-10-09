@@ -21,12 +21,19 @@ class StudioTests(unittest.TestCase):
 
     def request(self, **changes):
         kw = dict(style="Orchestral salsa", lyrics="[Verse]\nCantemos.", cot="off",
-                  seed=123, steps=8, guidance=1.01, sem_temperature=1,
+                  seed=123, steps=4, guidance=1.0, sem_temperature=1,
                   sem_top_p=0.95, sem_top_k=100, sem_penalty=1.2,
                   sem_window=50, sem_min=200, abc_temperature=0.7,
                   abc_top_p=0.9, manual_limit=False, sem_max=9000)
         kw.update(changes)
         return self.app.payload(**kw)
+
+    def test_fast_defaults_in_gradio(self):
+        fields = {c["props"].get("label"): c["props"] for c in self.app.demo.config["components"]}
+        self.assertEqual(fields["Planificación (CoT)"]["value"], "off")
+        self.assertEqual(fields["Pasos acústicos NAR"]["value"], 4)
+        self.assertEqual(fields["Escala de guía CFG"]["value"], 1.0)
+        self.assertFalse(fields["Aplicar límite manual de tokens (desactivado = final natural/EOS)"]["value"])
 
     def test_auto_ends_by_eos_without_384_cap(self):
         req = self.request()

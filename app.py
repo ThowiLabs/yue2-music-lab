@@ -219,9 +219,9 @@ with gr.Blocks(title="YuE2 Q8 Studio") as demo:
         with gr.Row():
             cot = gr.Dropdown(["off", "melody", "full"], value="off", label="Planificación (CoT)")
             seed = gr.Number(label="Semilla", value=20260920, precision=0, minimum=0, maximum=2147483647)
-            steps = gr.Slider(label="Pasos acústicos NAR", minimum=4, maximum=48, step=1, value=8)
+            steps = gr.Slider(label="Pasos acústicos NAR", minimum=4, maximum=48, step=1, value=4)
         with gr.Row():
-            guidance = gr.Slider(label="Escala de guía CFG", minimum=0, maximum=5, step=0.01, value=1.01)
+            guidance = gr.Slider(label="Escala de guía CFG", minimum=0, maximum=5, step=0.01, value=1.0)
             sem_temperature = gr.Slider(label="Creatividad semántica (temperatura)", minimum=0, maximum=3, step=0.05, value=1)
             sem_top_p = gr.Slider(label="Semantic top-p", minimum=0, maximum=1, step=0.01, value=0.95)
             sem_top_k = gr.Slider(label="Semantic top-k", minimum=1, maximum=300, step=1, value=100)
