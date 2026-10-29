@@ -34,6 +34,14 @@ class KaggleNotebookTests(unittest.TestCase):
         self.assertIn("start_new_session=True", script)
         self.assertNotIn("LOG_FILE", script)
 
+    def test_quality_safe_multi_gpu_defaults_are_explicit(self):
+        setup = next(c for c in self.notebook["cells"] if "GRADIO_PORT = 7875" in "".join(c["source"]))
+        source = "".join(setup["source"])
+        self.assertIn("NAR_SPLIT_MODE = 'off'", source)
+        self.assertIn("VAE_TILE_MODE = 'auto'", source)
+        self.assertIn("'YUE2_MULTI_GPU_NAR_SPLIT': NAR_SPLIT_MODE", source)
+        self.assertIn("'YUE2_MULTI_GPU_VAE_TILES': VAE_TILE_MODE", source)
+
     def test_repo_is_cloned(self):
         cell = next(c for c in self.notebook["cells"] if c.get("id") == "clone")
         self.assertIn("https://github.com/thowilabs/yue2-music-lab.git", "".join(cell["source"]))

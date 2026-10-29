@@ -81,9 +81,9 @@ El proyecto utiliza un **precompilado oficial de audio.cpp v0.9.0** para Ubuntu 
 
 ### Uso inteligente de varias GPU
 
-`scripts/run.py` consulta el inventario real de `audiocpp_server --list-devices`. Por defecto, si detecta varias GPU CUDA, inicia un único worker coordinador y activa `YUE2_MULTI_GPU=auto`: el runtime YuE2 reparte chunks NAR y tiles VAE independientes entre la GPU principal y las secundarias. La etapa AR autorregresiva sigue siendo secuencial y se ejecuta en la GPU principal.
+`scripts/run.py` consulta el inventario real de `audiocpp_server --list-devices`. Por defecto, si detecta varias GPU CUDA, inicia un único worker coordinador y activa `YUE2_MULTI_GPU=auto`: la etapa AR autorregresiva sigue siendo secuencial en la GPU principal. El perfil de calidad usa `YUE2_MULTI_GPU_NAR_SPLIT=off` para conservar los límites de chunk NAR originales y `YUE2_MULTI_GPU_VAE_TILES=auto` para permitir que los tiles VAE independientes se distribuyan entre GPU.
 
-Para evitar que la GPU secundaria quede ociosa en canciones que caben en un solo chunk NAR, el modo Multi-GPU puede subdividir ese tramo y resolver los chunks en paralelo, sin reducir precisión ni pasos ODE. Esta subdivisión cambia el contexto local entre chunks, por lo que el audio puede diferir ligeramente de una generación NAR monolítica; no se promete identidad bit a bit. Si prefieres conservar el contexto NAR original para canciones que caben en un solo chunk, configura `YUE2_MULTI_GPU_NAR_SPLIT=off`: VAE sigue repartiendo tiles y el NAR solo se paraleliza cuando el algoritmo original ya produce varios chunks. `YUE2_MULTI_GPU=off` desactiva el coordinador Multi-GPU y permite usar workers independientes para maximizar canciones simultáneas. El modo automático evita cargar workers duplicados innecesarios y requiere validación de rendimiento en el hardware.
+Para evitar que la GPU secundaria quede ociosa en canciones que caben en un solo chunk NAR, el modo Multi-GPU puede subdividir ese tramo y resolver los chunks en paralelo, sin reducir precisión ni pasos ODE. Esta subdivisión cambia el contexto local entre chunks, por lo que el audio puede diferir ligeramente de una generación NAR monolítica; no se promete identidad bit a bit. Este es el perfil predeterminado recomendado porque evita cambios de contexto entre mitades de una canción. Si priorizas velocidad y aceptas posibles diferencias de timbre entre chunks, puedes cambiar explícitamente a `YUE2_MULTI_GPU_NAR_SPLIT=auto` para subdividir NAR en canciones largas. Con `off`, VAE sigue repartiendo tiles y NAR solo se paraleliza cuando el algoritmo original ya produce varios chunks. `YUE2_MULTI_GPU=off` desactiva el coordinador Multi-GPU y permite usar workers independientes para maximizar canciones simultáneas. El modo automático evita cargar workers duplicados innecesarios y requiere validación de rendimiento en el hardware.
 
 ## Instalación
 
@@ -186,7 +186,7 @@ Variables opcionales de entorno (consulta [`.env.example`](.env.example)):
 | `GRADIO_DISABLE_AUTH` | `0` | **`1` deshabilita toda la autenticación**, solo para pruebas |
 | `YUE2_API_URL` | `http://127.0.0.1:7876` | API a la que se conecta el panel |
 | `YUE2_MULTI_GPU` | `auto` | `auto` divide etapas paralelizables entre GPU; `off` crea workers independientes para varias canciones simultáneas |
-| `YUE2_MULTI_GPU_NAR_SPLIT` | `auto` | `auto` subdivide NAR para usar más GPU; `off` conserva los límites de chunk originales y mantiene el VAE paralelo |
+| `YUE2_MULTI_GPU_NAR_SPLIT` | `off` | `off` conserva los límites de chunk originales; `auto` puede subdividir NAR para acelerar canciones largas, con posibles cambios de contexto; VAE permanece paralelo |
 
 La primera ejecución crea una contraseña aleatoria en `.gradio-auth` con permisos restrictivos. **No publiques ese archivo ni compartas su contenido.**
 

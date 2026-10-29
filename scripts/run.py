@@ -102,6 +102,13 @@ def stop_child(child: subprocess.Popen) -> None:
             child.wait()
 
 
+def configure_nar_vae_scheduling(env: dict[str, str]) -> dict[str, str]:
+    """Default to context-preserving NAR while retaining parallel VAE tiles."""
+    env.setdefault("YUE2_MULTI_GPU_NAR_SPLIT", "off")
+    env.setdefault("YUE2_MULTI_GPU_VAE_TILES", "auto")
+    return env
+
+
 def gpu_plan(devices: list[int], mode: str = "auto") -> tuple[list[int], list[int], bool]:
     """Elige entre baja latencia Multi-GPU y varias generaciones independientes."""
     normalized = mode.strip().lower()
@@ -126,7 +133,7 @@ def run() -> int:
     if not binary.is_file():
         raise SystemExit("Falta audio.cpp; ejecuta python scripts/install.py")
 
-    env = os.environ.copy()
+    env = configure_nar_vae_scheduling(os.environ.copy())
     env["LD_LIBRARY_PATH"] = (
         "/usr/local/nvidia/lib64:/usr/local/cuda/lib64:" + env.get("LD_LIBRARY_PATH", "")
     ).rstrip(":")
@@ -163,6 +170,11 @@ def run() -> int:
     used_devices: list[int] = []
     try:
         print(f"GPU detectadas por audio.cpp: {devices}", flush=True)
+        print(
+            "Calidad NAR: " + env["YUE2_MULTI_GPU_NAR_SPLIT"] +
+            " · VAE tiles: " + env["YUE2_MULTI_GPU_VAE_TILES"],
+            flush=True,
+        )
         if multi_gpu_enabled:
             print(
                 f"Modo Multi-GPU: GPU principal {worker_devices[0]}, "

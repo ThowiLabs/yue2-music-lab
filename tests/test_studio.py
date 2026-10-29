@@ -83,6 +83,19 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(config["device"], 1)
         self.assertEqual(config["port"], 7878)
 
+    def test_quality_safe_nar_default_keeps_vae_parallel(self):
+        env = self.runner.configure_nar_vae_scheduling({})
+        self.assertEqual(env["YUE2_MULTI_GPU_NAR_SPLIT"], "off")
+        self.assertEqual(env["YUE2_MULTI_GPU_VAE_TILES"], "auto")
+
+    def test_explicit_nar_split_override_is_preserved(self):
+        env = self.runner.configure_nar_vae_scheduling({
+            "YUE2_MULTI_GPU_NAR_SPLIT": "auto",
+            "YUE2_MULTI_GPU_VAE_TILES": "off",
+        })
+        self.assertEqual(env["YUE2_MULTI_GPU_NAR_SPLIT"], "auto")
+        self.assertEqual(env["YUE2_MULTI_GPU_VAE_TILES"], "off")
+
     def test_multi_gpu_auto_uses_one_coordinator_per_song(self):
         self.assertEqual(self.runner.gpu_plan([0, 1], "auto"), ([0], [1], True))
         self.assertEqual(self.runner.gpu_plan([0, 1, 2], "on"), ([0], [1, 2], True))

@@ -1,10 +1,18 @@
 # Historial de versiones
 
+## 2026-10-29 — Perfil Multi-GPU de continuidad
+
+- Se establece `YUE2_MULTI_GPU_NAR_SPLIT=off` como valor predeterminado para conservar los límites de contexto NAR originales y evitar cambios audibles entre mitades de una canción.
+- Se mantiene `YUE2_MULTI_GPU_VAE_TILES=auto`, permitiendo repartir tiles VAE independientes entre GPU cuando NAR se ejecuta en serie.
+- Se puede volver a `YUE2_MULTI_GPU_NAR_SPLIT=auto` explícitamente si se prioriza velocidad sobre continuidad de timbre.
+- Se actualizan el lanzador, los ejemplos de entorno, la documentación y los cuadernos de Kaggle/Hugging Face.
+
+
 ## En desarrollo — Multi-GPU
 - Detección de dispositivos CUDA a través del inventario de audio.cpp y un worker YuE2 independiente por GPU.
 - Pool round-robin en Gradio: una generación por worker, con ejecución simultánea en GPU distintas.
 - Estado del motor por GPU y pruebas unitarias del reparto concurrente.
-- Nota técnica: audio.cpp no divide una inferencia individual entre dispositivos; el paralelismo multi-GPU se logra con workers independientes.
+- Nota técnica: el coordinador C++ puede repartir etapas NAR/VAE de una canción entre GPU. El perfil predeterminado conserva los chunks NAR originales y distribuye tiles VAE independientes; AR sigue secuencial en GPU principal.
 
 ## v0.3.4 — 2026-10-09
 - Notebook Kaggle: el servidor Gradio y la API CUDA mantienen ocupada la última celda mientras se ejecutan, con los mensajes del servidor visibles en tiempo real.
