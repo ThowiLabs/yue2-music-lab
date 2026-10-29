@@ -1,5 +1,11 @@
 # Historial de versiones
 
+## En desarrollo — Multi-GPU
+- Detección de dispositivos CUDA a través del inventario de audio.cpp y un worker YuE2 independiente por GPU.
+- Pool round-robin en Gradio: una generación por worker, con ejecución simultánea en GPU distintas.
+- Estado del motor por GPU y pruebas unitarias del reparto concurrente.
+- Nota técnica: audio.cpp no divide una inferencia individual entre dispositivos; el paralelismo multi-GPU se logra con workers independientes.
+
 ## v0.3.4 — 2026-10-09
 - Notebook Kaggle: el servidor Gradio y la API CUDA mantienen ocupada la última celda mientras se ejecutan, con los mensajes del servidor visibles en tiempo real.
 - Interrumpir ejecución en Kaggle finaliza el grupo de procesos de esta instancia, sin mantener servicios en segundo plano.

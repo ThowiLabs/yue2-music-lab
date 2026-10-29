@@ -74,8 +74,58 @@ class StudioTests(unittest.TestCase):
         config = self.runner.backend_config(7876)
         self.assertEqual(config["host"], "127.0.0.1")
         self.assertEqual(config["backend"], "cuda")
+        self.assertEqual(config["device"], 0)
         self.assertEqual(config["models"][0]["session_options"]["yue2.model_gguf"], "yue2-3b-q8_0.gguf")
         self.assertEqual(config["models"][0]["session_options"]["yue2.vae_gguf"], "yue2-vae-f16.gguf")
+
+    def test_backend_config_selects_requested_gpu(self):
+        config = self.runner.backend_config(7878, device=1)
+        self.assertEqual(config["device"], 1)
+        self.assertEqual(config["port"], 7878)
+
+    def test_multi_gpu_auto_uses_one_coordinator_per_song(self):
+        self.assertEqual(self.runner.gpu_plan([0, 1], "auto"), ([0], [1], True))
+        self.assertEqual(self.runner.gpu_plan([0, 1, 2], "on"), ([0], [1, 2], True))
+        self.assertEqual(self.runner.gpu_plan([0, 1], "off"), ([0, 1], [], False))
+        self.assertEqual(self.runner.gpu_plan([0], "auto"), ([0], [], False))
+        with self.assertRaises(ValueError):
+            self.runner.gpu_plan([0, 1], "sometimes")
+
+    def test_multi_gpu_label_is_visible_in_ui(self):
+        from unittest.mock import patch
+        with patch.dict("os.environ", {
+            "YUE2_MULTI_GPU": "auto",
+            "YUE2_MULTI_GPU_DEVICES": "1",
+            "YUE2_MULTI_GPU_PRIMARY_DEVICE": "0",
+        }):
+            self.assertEqual(self.app.accelerator_label(0), "Multi-GPU por etapas (GPU 0 + GPU 1)")
+        with patch.dict("os.environ", {"YUE2_MULTI_GPU": "off", "YUE2_MULTI_GPU_DEVICES": ""}):
+            self.assertEqual(self.app.accelerator_label(0), "GPU 0")
+
+    def test_gpu_pool_distributes_concurrent_jobs(self):
+        pool = self.app.BackendPool(("http://gpu0", "http://gpu1"), (0, 1))
+        url0, gpu0, lock0 = pool.acquire()
+        url1, gpu1, lock1 = pool.acquire()
+        try:
+            self.assertEqual((url0, gpu0), ("http://gpu0", 0))
+            self.assertEqual((url1, gpu1), ("http://gpu1", 1))
+            with self.assertRaises(RuntimeError):
+                pool.acquire()
+        finally:
+            lock0.release()
+            lock1.release()
+
+    def test_gpu_pool_reuses_freed_worker_when_other_is_busy(self):
+        pool = self.app.BackendPool(("http://gpu0", "http://gpu1"), (0, 1))
+        url0, _, lock0 = pool.acquire()
+        _, _, lock1 = pool.acquire()
+        lock0.release()
+        url2, _, lock2 = pool.acquire()
+        try:
+            self.assertEqual(url0, url2)
+        finally:
+            lock1.release()
+            lock2.release()
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parent
 OUTPUTS = ROOT / "outputs"
 ALLOWED = str(OUTPUTS.resolve())
 MAX_CODEC_FRAMES = 9000
+GPU_CONCURRENCY = max(1, len(legacy.SERVER_URLS))
 
 
 def yue_request(style: str, lyrics: str, cot: str, seed: int = 20260920,
@@ -92,17 +93,19 @@ def decode_artifacts(result: dict, base: Path) -> tuple[str | None, str | None]:
 def run_engine(request: dict, progress=None) -> tuple[str, str | None, str | None, str]:
     if legacy.missing_components():
         raise ValueError("Faltan archivos de los modelos YuE2.")
-    if not legacy.LOCK.acquire(blocking=False):
-        raise ValueError("YuE2 está generando otra canción. Finaliza esa operación primero.")
+    try:
+        backend_url, device, worker_lock = legacy.BACKEND_POOL.acquire()
+    except RuntimeError as exc:
+        raise ValueError(str(exc)) from exc
     try:
         if progress:
-            progress(0.01, desc="YuE2 componiendo y sintetizando en GPU 0")
+            progress(0.01, desc=f"YuE2 componiendo y sintetizando en {legacy.accelerator_label(device)}")
         start = time.monotonic()
         payload = json.dumps(request, ensure_ascii=False).encode("utf-8")
         if len(payload) > 700000:
             raise ValueError("La solicitud supera el tamaño seguro del motor.")
         req = urllib.request.Request(
-            legacy.SERVER_URL + "/v1/tasks/run", data=payload,
+            backend_url + "/v1/tasks/run", data=payload,
             headers={"Content-Type": "application/json"}, method="POST",
         )
         try:
@@ -134,7 +137,7 @@ def run_engine(request: dict, progress=None) -> tuple[str, str | None, str | Non
             progress(1, desc="Audio completado")
         return str(path), codec, score, f"{seconds:.1f}s de audio · {time.monotonic()-start:.1f}s de cálculo"
     finally:
-        legacy.LOCK.release()
+        worker_lock.release()
 
 
 def generate_original(style, lyrics, cot, seed, steps, cfg, manual, max_tokens,
@@ -291,7 +294,7 @@ with gr.Blocks(title="YuE2 · FL Studio Music Lab") as demo:
                 cap_tokens = gr.Number(label="Máximo de tokens semánticos", value=9000, minimum=200, maximum=9000, precision=0)
             submit.click(generate_original,
                 inputs=[style, lyrics, cot, seed, steps, cfg, cap, cap_tokens],
-                outputs=[music, download, semfile, abcfile, message], concurrency_limit=1)
+                outputs=[music, download, semfile, abcfile, message], concurrency_limit=GPU_CONCURRENCY)
         with gr.Tab("Cover / Remix"):
             gr.Markdown("**Cover en 3 pasos:** sube tu WAV/MP3, escribe la letra y pulsa **Crear cover**. YuE2 extrae una referencia melódica automáticamente. No tienes que subir MIDI ni escribir ABC.")
             with gr.Row():
@@ -329,7 +332,7 @@ with gr.Blocks(title="YuE2 · FL Studio Music Lab") as demo:
                 inputs=[cover_audio, cover_midi, cover_offset], outputs=[cover_abc, cover_analysis])
             cover_run.click(cover_remix,
                 inputs=[cover_audio, cover_midi, cover_abc, cover_style, cover_lyrics, cover_mode, cover_steps, cover_cfg],
-                outputs=[cover_result, cover_download, cover_sem, cover_score, cover_message], concurrency_limit=1)
+                outputs=[cover_result, cover_download, cover_sem, cover_score, cover_message], concurrency_limit=GPU_CONCURRENCY)
         with gr.Tab("Extender FL Studio"):
             gr.Markdown("**Conserva tu demo y añade música nueva.** Se analiza la parte final de tu canción, YuE2 genera una sección nueva y se une mediante crossfade. No es una continuación exacta del timbre como Suno.")
             with gr.Row():
@@ -363,7 +366,7 @@ with gr.Blocks(title="YuE2 · FL Studio Music Lab") as demo:
             ext_submit.click(extend_fl,
                 inputs=[extend_audio, extend_midi, extend_abc, extend_style, extend_lyrics,
                         length, fade, ext_steps, ext_cfg],
-                outputs=[extended, ext_download, ext_new, ext_sem, ext_score, ext_message], concurrency_limit=1)
+                outputs=[extended, ext_download, ext_new, ext_sem, ext_score, ext_message], concurrency_limit=GPU_CONCURRENCY)
         with gr.Tab("Continuar una canción YuE2"):
             gr.Markdown("**Continuación real desde tokens YuE2.** Usa el archivo JSON que se descarga al generar una canción en la primera pestaña. Este método no acepta directamente MP3 externos.")
             with gr.Row():
@@ -385,7 +388,7 @@ with gr.Blocks(title="YuE2 · FL Studio Music Lab") as demo:
                     next_sem = gr.File(label="Nuevos tokens para otra extensión")
                     sem_info = gr.Markdown()
             sem_submit.click(continue_yue, inputs=[sem_source, sem_style, sem_lyrics, sem_seconds, sem_steps, sem_cfg],
-                outputs=[sem_player, sem_download, next_sem, sem_info], concurrency_limit=1)
+                outputs=[sem_player, sem_download, next_sem, sem_info], concurrency_limit=GPU_CONCURRENCY)
     gr.Button("Actualizar estado del motor", size="sm").click(legacy.status, outputs=state)
 
 
@@ -401,7 +404,7 @@ if __name__ == "__main__":
     login = gradio_auth()
     if login is None:
         print("AVISO: Gradio sin login; cualquier persona con el enlace puede acceder.", flush=True)
-    demo.queue(max_size=3).launch(
+    demo.queue(max_size=max(3, GPU_CONCURRENCY * 2), default_concurrency_limit=GPU_CONCURRENCY).launch(
         server_name=os.getenv("GRADIO_SERVER_NAME", "0.0.0.0"),
         server_port=int(os.getenv("GRADIO_SERVER_PORT", "7875")),
         auth=login,

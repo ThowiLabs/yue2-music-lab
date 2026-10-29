@@ -19,7 +19,46 @@ import gradio as gr
 ROOT = Path(__file__).resolve().parent
 MODEL_DIR = ROOT / "models" / "Yue2-3B-GGUF"
 OUTPUTS = ROOT / "outputs"
-SERVER_URL = os.getenv("YUE2_API_URL", "http://127.0.0.1:7876").rstrip("/")
+def _configured_backends() -> tuple[str, ...]:
+    raw = os.getenv("YUE2_API_URLS", os.getenv("YUE2_API_URL", "http://127.0.0.1:7876"))
+    urls = tuple(dict.fromkeys(item.strip().rstrip("/") for item in raw.split(",") if item.strip()))
+    return urls or ("http://127.0.0.1:7876",)
+
+
+SERVER_URLS = _configured_backends()
+SERVER_URL = SERVER_URLS[0]
+_raw_devices = [item.strip() for item in os.getenv("YUE2_BACKEND_DEVICES", "").split(",") if item.strip()]
+try:
+    BACKEND_DEVICES = tuple(int(item) for item in _raw_devices) if _raw_devices else tuple(range(len(SERVER_URLS)))
+except ValueError:
+    BACKEND_DEVICES = tuple(range(len(SERVER_URLS)))
+if len(BACKEND_DEVICES) != len(SERVER_URLS):
+    BACKEND_DEVICES = tuple(range(len(SERVER_URLS)))
+
+
+class BackendPool:
+    """Asignación round-robin con un trabajo a la vez por GPU/servidor."""
+
+    def __init__(self, urls: tuple[str, ...], devices: tuple[int, ...]):
+        self.urls = urls
+        self.devices = devices
+        self._locks = [threading.Lock() for _ in urls]
+        self._guard = threading.Lock()
+        self._next = 0
+
+    def acquire(self) -> tuple[str, int, threading.Lock]:
+        with self._guard:
+            for offset in range(len(self.urls)):
+                index = (self._next + offset) % len(self.urls)
+                lock = self._locks[index]
+                if lock.acquire(blocking=False):
+                    self._next = (index + 1) % len(self.urls)
+                    return self.urls[index], self.devices[index], lock
+        raise RuntimeError("Todas las GPU están ocupadas. Espera a que termine una generación e inténtalo de nuevo.")
+
+
+BACKEND_POOL = BackendPool(SERVER_URLS, BACKEND_DEVICES)
+# Conservado para compatibilidad con integraciones antiguas que importen app.py.
 LOCK = threading.Lock()
 REQUIRED = (
     "yue2-3b-q8_0.gguf",
@@ -31,13 +70,25 @@ REQUIRED = (
 )
 
 
-def get_json(path: str, timeout: float = 4) -> dict:
-    with urllib.request.urlopen(f"{SERVER_URL}{path}", timeout=timeout) as response:
+def get_json(path: str, timeout: float = 4, base_url: str | None = None) -> dict:
+    base = (base_url or SERVER_URL).rstrip("/")
+    with urllib.request.urlopen(f"{base}{path}", timeout=timeout) as response:
         return json.load(response)
 
 
 def missing_components() -> list[str]:
     return [name for name in REQUIRED if not (MODEL_DIR / name).is_file() or (MODEL_DIR / name).stat().st_size == 0]
+
+
+def accelerator_label(device: int | str) -> str:
+    """Describe el acelerador asignado sin confundir workers con GPU físicas."""
+    mode = os.getenv("YUE2_MULTI_GPU", "off").strip().lower()
+    secondary = [item.strip() for item in os.getenv("YUE2_MULTI_GPU_DEVICES", "").split(",") if item.strip()]
+    if mode not in {"off", "false", "0", "disabled"} and secondary:
+        primary = os.getenv("YUE2_MULTI_GPU_PRIMARY_DEVICE", str(device))
+        devices = [primary, *secondary]
+        return "Multi-GPU por etapas (" + " + ".join(f"GPU {item}" for item in devices) + ")"
+    return f"GPU {device}"
 
 
 def status() -> str:
@@ -50,14 +101,21 @@ def status() -> str:
         cuda = "disponible"
     except OSError:
         cuda = "no disponible"
-    try:
-        health = get_json("/health")
-        models = get_json("/v1/models").get("data", [])
-        entry = next((m for m in models if m.get("id") == "yue2-q8"), None)
-        server = f"activo ({health.get('backend', '?')}); modelo {'cargado' if entry and entry.get('loaded') else 'disponible'}"
-    except (OSError, ValueError, KeyError):
-        server = "sin conexión (ejecuta scripts/run.py)"
-    return f"**Motor:** {server} · **CUDA:** {cuda} · **Pesos:** {'completos' if not missing else 'faltan: ' + ', '.join(missing)}"
+    reports = []
+    for url, configured_device in zip(BACKEND_POOL.urls, BACKEND_POOL.devices):
+        try:
+            health = get_json("/health", base_url=url)
+            models = get_json("/v1/models", base_url=url).get("data", [])
+            entry = next((m for m in models if m.get("id") == "yue2-q8"), None)
+            device = entry.get("device", configured_device) if entry else configured_device
+            state = "cargado" if entry and entry.get("loaded") else "disponible"
+            reports.append(f"GPU {device}: activo ({health.get('backend', '?')}), modelo {state}")
+        except (OSError, ValueError, KeyError):
+            reports.append(f"GPU {configured_device}: sin conexión")
+    server = " · ".join(reports) if reports else "sin servidores configurados"
+    weights = "completos" if not missing else "faltan: " + ", ".join(missing)
+    acceleration = accelerator_label(BACKEND_DEVICES[0]) if BACKEND_DEVICES else "sin GPU"
+    return f"**Motor:** {server} · **Aceleración:** {acceleration} · **CUDA:** {cuda} · **Pesos:** {weights}"
 
 
 def payload(
@@ -134,12 +192,14 @@ def generate(
         )
     except ValueError as exc:
         raise gr.Error(str(exc)) from exc
-    if not LOCK.acquire(blocking=False):
-        raise gr.Error("Ya hay una generación activa desde esta interfaz.")
     try:
-        progress(0.01, desc="Generando canción hasta que el modelo indique su final")
+        backend_url, device, worker_lock = BACKEND_POOL.acquire()
+    except RuntimeError as exc:
+        raise gr.Error(str(exc)) from exc
+    try:
+        progress(0.01, desc=f"Generando canción en GPU {device} hasta el final natural del modelo")
         request = urllib.request.Request(
-            SERVER_URL + "/v1/tasks/run",
+            backend_url + "/v1/tasks/run",
             data=json.dumps(request_body).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
@@ -175,7 +235,7 @@ def generate(
             f"{len(wav) / 1048576:.1f} MiB · WAV sin pérdida"
         )
     finally:
-        LOCK.release()
+        worker_lock.release()
 
 
 def credentials() -> tuple[str, str]:

@@ -32,6 +32,7 @@ Proyecto de [ThowiLabs](https://github.com/thowilabs) para crear canciones desde
 | **Continuar YuE2** | Continuar una canción creada por YuE2 usando su archivo de tokens semánticos JSON | Funcional |
 | **MIDI / ABC** | Proporcionar una melodía más precisa, opcional para covers y extensiones | Funcional |
 | **GPU CUDA** | Inferencia con motor nativo `audio.cpp` y pesos GGUF Q8_0 | Probado en Tesla T4 |
+| **Multi-GPU** | Detecta las GPU que reconoce audio.cpp y asigna un worker por dispositivo; distribuye trabajos simultáneos | Un trabajo por GPU, round-robin |
 | **Acceso web** | Gradio, archivos WAV descargables y autenticación configurable | Funcional |
 
 El proyecto utiliza **YuE2-3B Q8_0** y su **VAE F16**, evitando cargar un modelo distinto para cada pestaña.
@@ -77,6 +78,12 @@ El proyecto utiliza **YuE2-3B Q8_0** y su **VAE F16**, evitando cargar un modelo
 - **Almacenamiento:** varios gigabytes para modelos GGUF, motor, caché y resultados.
 
 El proyecto utiliza un **precompilado oficial de audio.cpp v0.9.0** para Ubuntu x64 CUDA 12.8. No se ha validado esta configuración en Windows, macOS ni dispositivos móviles.
+
+### Uso inteligente de varias GPU
+
+`scripts/run.py` consulta el inventario real de `audiocpp_server --list-devices`. Por defecto, si detecta varias GPU CUDA, inicia un único worker coordinador y activa `YUE2_MULTI_GPU=auto`: el runtime YuE2 reparte chunks NAR y tiles VAE independientes entre la GPU principal y las secundarias. La etapa AR autorregresiva sigue siendo secuencial y se ejecuta en la GPU principal.
+
+Para evitar que la GPU secundaria quede ociosa en canciones que caben en un solo chunk NAR, el modo Multi-GPU puede subdividir ese tramo y resolver los chunks en paralelo, sin reducir precisión ni pasos ODE. Esta subdivisión cambia el contexto local entre chunks, por lo que el audio puede diferir ligeramente de una generación NAR monolítica; no se promete identidad bit a bit. Si prefieres conservar el contexto NAR original para canciones que caben en un solo chunk, configura `YUE2_MULTI_GPU_NAR_SPLIT=off`: VAE sigue repartiendo tiles y el NAR solo se paraleliza cuando el algoritmo original ya produce varios chunks. `YUE2_MULTI_GPU=off` desactiva el coordinador Multi-GPU y permite usar workers independientes para maximizar canciones simultáneas. El modo automático evita cargar workers duplicados innecesarios y requiere validación de rendimiento en el hardware.
 
 ## Instalación
 
@@ -134,7 +141,7 @@ Dirección local de la interfaz:
 http://127.0.0.1:7875
 ```
 
-El motor se conecta internamente mediante `http://127.0.0.1:7876`; por diseño, **no se expone la API de inferencia a la red**.
+El motor se conecta internamente mediante `http://127.0.0.1:7876` y workers adicionales en `7878`, `7880`, etc.; por diseño, **no se expone la API de inferencia a la red**.
 
 Para detener el arranque administrado, usa `Ctrl+C`. El lanzador comprueba que los puertos no estén ocupados antes de iniciar nuevos procesos.
 
@@ -178,6 +185,8 @@ Variables opcionales de entorno (consulta [`.env.example`](.env.example)):
 | `GRADIO_PASSWORD` | Generada en primer inicio | Contraseña, si se configura explícitamente |
 | `GRADIO_DISABLE_AUTH` | `0` | **`1` deshabilita toda la autenticación**, solo para pruebas |
 | `YUE2_API_URL` | `http://127.0.0.1:7876` | API a la que se conecta el panel |
+| `YUE2_MULTI_GPU` | `auto` | `auto` divide etapas paralelizables entre GPU; `off` crea workers independientes para varias canciones simultáneas |
+| `YUE2_MULTI_GPU_NAR_SPLIT` | `auto` | `auto` subdivide NAR para usar más GPU; `off` conserva los límites de chunk originales y mantiene el VAE paralelo |
 
 La primera ejecución crea una contraseña aleatoria en `.gradio-auth` con permisos restrictivos. **No publiques ese archivo ni compartas su contenido.**
 
